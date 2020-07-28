@@ -147,25 +147,6 @@ namespace Plugin.PushNotification
         {
             CrossPushNotification.Current.NotificationHandler = CrossPushNotification.Current.NotificationHandler ?? new DefaultPushNotificationHandler();
 
-            if (options?.ContainsKey(UIApplication.LaunchOptionsRemoteNotificationKey) ?? false)
-            {
-                var pushPayload = options[UIApplication.LaunchOptionsRemoteNotificationKey] as NSDictionary;
-                if (pushPayload != null)
-                {
-                    var parameters = GetParameters(pushPayload);
-
-                    var notificationResponse = new NotificationResponse(parameters, string.Empty, NotificationCategoryType.Default);
-
-
-                    if (_onNotificationOpened == null && enableDelayedResponse)
-                        delayedNotificationResponse = notificationResponse;
-                    else
-                        _onNotificationOpened?.Invoke(CrossPushNotification.Current, new PushNotificationResponseEventArgs(notificationResponse.Data, notificationResponse.Identifier, notificationResponse.Type));
-
-                    CrossPushNotification.Current.NotificationHandler?.OnOpened(notificationResponse);
-                }
-            }
-
             if (autoRegistration)
             {
                 CrossPushNotification.Current.RegisterForPushNotifications();
@@ -352,6 +333,16 @@ namespace Plugin.PushNotification
             var notificationResponse = new NotificationResponse(parameters, $"{response.ActionIdentifier}".Equals("com.apple.UNNotificationDefaultActionIdentifier", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : $"{response.ActionIdentifier}", catType,result);
 
             _onNotificationAction?.Invoke(this, new PushNotificationResponseEventArgs(notificationResponse.Data, notificationResponse.Identifier, notificationResponse.Type,result));
+
+            if (response.IsDefaultAction)
+            {
+                if (_onNotificationOpened == null)
+                    delayedNotificationResponse = notificationResponse;
+                else
+                    _onNotificationOpened?.Invoke(CrossPushNotification.Current, new PushNotificationResponseEventArgs(notificationResponse.Data, notificationResponse.Identifier, notificationResponse.Type));
+
+                CrossPushNotification.Current.NotificationHandler?.OnOpened(notificationResponse);
+            }
 
             CrossPushNotification.Current.NotificationHandler?.OnAction(notificationResponse);
 
